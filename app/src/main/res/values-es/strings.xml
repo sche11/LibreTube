@@ -464,7 +464,7 @@
     <string name="player_channel_name">Servicios del reproductor</string>
     <string name="player_channel_description">Aparece una notificación cuando se está reproduciendo</string>
     <string name="tooltip_sort">Ordenar</string>
-    <string name="tooltip_dismiss">Descartar</string>
+    <string name="tooltip_dismiss">Cancelar</string>
     <string name="tooltip_fullscreen">Pantalla completa</string>
     <string name="tooltip_close">Cerrar</string>
     <string name="tooltip_play">Reproducir</string>
@@ -547,4 +547,6 @@
     <string name="title">Título</string>
     <string name="thumbnail_time">Duracción de la miniatura</string>
     <string name="best_quality">Mejor</string>
+    <string name="external_download_provider_summary">Introduzca el nombre de la aplicación que desea utilizar para descargar los vídeos. Déjelo en blanco para utilizar el LibreTube.</string>
+    <string name="external_download_provider">Proveedor de descargas externo</string>
 </resources>

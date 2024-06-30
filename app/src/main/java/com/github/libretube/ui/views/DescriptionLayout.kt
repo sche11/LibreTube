@@ -19,9 +19,9 @@ import com.github.libretube.ui.activities.VideoTagsAdapter
 import com.github.libretube.util.HtmlParser
 import com.github.libretube.util.LinkHandler
 import com.github.libretube.util.TextUtils
-import java.util.Locale
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import java.util.Locale
 
 class DescriptionLayout(
     context: Context,
@@ -143,9 +143,10 @@ class DescriptionLayout(
     }
 
     private fun localizeDate(streams: Streams): String {
-        if (streams.livestream) return ""
+        if (streams.livestream || streams.uploadTimestamp == null) return ""
 
         val date = streams.uploadTimestamp.toLocalDateTime(TimeZone.currentSystemDefault()).date
+
         return TextUtils.SEPARATOR + TextUtils.localizeDate(date)
     }
 

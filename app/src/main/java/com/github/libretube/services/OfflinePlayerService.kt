@@ -4,9 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -34,17 +32,15 @@ import com.github.libretube.helpers.PlayerHelper
 import com.github.libretube.obj.PlayerNotificationData
 import com.github.libretube.util.NowPlayingNotification
 import com.github.libretube.util.PauseableTimer
-import kotlin.io.path.exists
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.io.path.exists
 
 /**
  * A service to play downloaded audio in the background
  */
 class OfflinePlayerService : LifecycleService() {
-    val handler = Handler(Looper.getMainLooper())
-
     private var player: ExoPlayer? = null
     private var nowPlayingNotification: NowPlayingNotification? = null
     private lateinit var videoId: String
@@ -209,14 +205,18 @@ class OfflinePlayerService : LifecycleService() {
         saveWatchPosition()
 
         nowPlayingNotification?.destroySelf()
-
-        player?.stop()
-        player?.release()
-        player = null
         nowPlayingNotification = null
-
         watchPositionTimer.destroy()
-        unregisterReceiver(playerActionReceiver)
+
+        runCatching {
+            player?.stop()
+            player?.release()
+        }
+        player = null
+
+        runCatching {
+            unregisterReceiver(playerActionReceiver)
+        }
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()

@@ -45,14 +45,15 @@ import com.github.libretube.obj.PlayerNotificationData
 import com.github.libretube.ui.base.BaseActivity
 import com.github.libretube.ui.interfaces.TimeFrameReceiver
 import com.github.libretube.ui.listeners.SeekbarPreviewListener
+import com.github.libretube.ui.models.ChaptersViewModel
 import com.github.libretube.ui.models.PlayerViewModel
 import com.github.libretube.util.NowPlayingNotification
 import com.github.libretube.util.OfflineTimeFrameReceiver
 import com.github.libretube.util.PauseableTimer
-import kotlin.io.path.exists
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.io.path.exists
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class OfflinePlayerActivity : BaseActivity() {
@@ -66,6 +67,7 @@ class OfflinePlayerActivity : BaseActivity() {
 
     private lateinit var playerBinding: ExoStyledPlayerControlViewBinding
     private val playerViewModel: PlayerViewModel by viewModels()
+    private val chaptersViewModel: ChaptersViewModel by viewModels()
 
     private val watchPositionTimer = PauseableTimer(
         onTick = this::saveWatchPosition,
@@ -177,7 +179,8 @@ class OfflinePlayerActivity : BaseActivity() {
 
         binding.player.initialize(
             binding.doubleTapOverlay.binding,
-            binding.playerGestureControlsView.binding
+            binding.playerGestureControlsView.binding,
+            chaptersViewModel
         )
 
         nowPlayingNotification = NowPlayingNotification(this, player, NowPlayingNotification.Companion.NowPlayingNotificationType.VIDEO_OFFLINE)
@@ -189,7 +192,7 @@ class OfflinePlayerActivity : BaseActivity() {
                 Database.downloadDao().findById(videoId)
             }
             val chapters = downloadChapters.map(DownloadChapter::toChapterSegment)
-            playerViewModel.chaptersLiveData.value = chapters
+            chaptersViewModel.chaptersLiveData.value = chapters
             binding.player.setChapters(chapters)
 
             val downloadFiles = downloadItems.filter { it.path.exists() }
@@ -300,12 +303,19 @@ class OfflinePlayerActivity : BaseActivity() {
     override fun onDestroy() {
         saveWatchPosition()
 
-        playerViewModel.player = null
-        player.release()
-        watchPositionTimer.destroy()
         nowPlayingNotification?.destroySelf()
+        nowPlayingNotification = null
+        watchPositionTimer.destroy()
 
-        unregisterReceiver(playerActionReceiver)
+        playerViewModel.player = null
+        runCatching {
+            player.stop()
+            player.release()
+        }
+
+        runCatching {
+            unregisterReceiver(playerActionReceiver)
+        }
 
         super.onDestroy()
     }

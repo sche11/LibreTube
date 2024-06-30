@@ -7,15 +7,17 @@ import android.os.Build
 import android.text.format.DateUtils
 import com.github.libretube.BuildConfig
 import com.github.libretube.R
+import com.google.common.math.IntMath.pow
+import kotlinx.datetime.toJavaLocalDate
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
+import java.util.Date
 import kotlin.time.Duration
 import kotlinx.datetime.LocalDate as KotlinLocalDate
-import kotlinx.datetime.toJavaLocalDate
 
 object TextUtils {
     /**
@@ -33,6 +35,8 @@ object TextUtils {
      */
     private val MEDIUM_DATE_FORMATTER = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
 
+    val defaultPlaylistName get() = Date().toString()
+
     /**
      * Localize the date from a date string, using the medium format.
      * @param date The date to parse
@@ -46,8 +50,44 @@ object TextUtils {
      * Get time in seconds from a YouTube video link.
      * @return Time in seconds
      */
-    fun String.toTimeInSeconds(): Long? {
-        return toLongOrNull() ?: Duration.parseOrNull(this)?.inWholeSeconds
+    fun String.toTimeInSeconds(): Long? = parseTimeString(this)?.toLong()
+
+    fun String.parseDurationString(): Float? = parseTimeString(this)
+
+    private fun parseTimeString(timeString: String): Float? {
+        if (timeString.all { it.isDigit() }) return timeString.toLongOrNull()?.toFloat()
+
+        if (timeString.all { it.isDigit() || ",.:".contains(it) }) {
+            var secondsTotal = 0
+            var secondsScoped = 0
+
+            var milliseconds = 0
+            var inMillis = false
+
+            for (char in timeString) {
+                if (inMillis) {
+                    if (!char.isDigit()) break
+
+                    milliseconds *= 10
+                    milliseconds += char.digitToInt()
+                } else if (char.isDigit()) {
+                    secondsScoped *= 10
+                    secondsScoped += char.digitToInt()
+                } else if (char == ':') {
+                    secondsTotal += secondsScoped * 60
+                    secondsScoped = 0
+                } else if (",.".contains(char)) {
+                    secondsTotal += secondsScoped
+                    secondsScoped = 0
+                    inMillis = true
+                }
+            }
+
+            val millisDecimal = milliseconds.toFloat() / pow(10, milliseconds.toString().length)
+            return secondsTotal.toFloat() + millisDecimal
+        }
+
+        return Duration.parseOrNull(timeString)?.inWholeMilliseconds?.toFloat()?.div(1000)
     }
 
     /**

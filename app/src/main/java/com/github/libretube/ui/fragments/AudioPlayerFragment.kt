@@ -31,6 +31,7 @@ import com.github.libretube.extensions.normalize
 import com.github.libretube.extensions.seekBy
 import com.github.libretube.extensions.toID
 import com.github.libretube.extensions.togglePlayPauseState
+import com.github.libretube.extensions.updateIfChanged
 import com.github.libretube.helpers.AudioHelper
 import com.github.libretube.helpers.BackgroundHelper
 import com.github.libretube.helpers.ImageHelper
@@ -42,6 +43,7 @@ import com.github.libretube.services.OnlinePlayerService
 import com.github.libretube.ui.activities.MainActivity
 import com.github.libretube.ui.interfaces.AudioPlayerOptions
 import com.github.libretube.ui.listeners.AudioPlayerThumbnailListener
+import com.github.libretube.ui.models.ChaptersViewModel
 import com.github.libretube.ui.models.PlayerViewModel
 import com.github.libretube.ui.sheets.ChaptersBottomSheet
 import com.github.libretube.ui.sheets.PlaybackOptionsSheet
@@ -50,9 +52,8 @@ import com.github.libretube.ui.sheets.SleepTimerSheet
 import com.github.libretube.ui.sheets.VideoOptionsBottomSheet
 import com.github.libretube.util.DataSaverMode
 import com.github.libretube.util.PlayingQueue
-import com.google.android.material.elevation.SurfaceColors
-import kotlin.math.abs
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
     private var _binding: FragmentAudioPlayerBinding? = null
@@ -61,6 +62,7 @@ class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
     private lateinit var audioHelper: AudioHelper
     private val mainActivity get() = context as MainActivity
     private val viewModel: PlayerViewModel by activityViewModels()
+    private val chaptersModel: ChaptersViewModel by activityViewModels()
 
     // for the transition
     private var transitionStartId = 0
@@ -104,6 +106,10 @@ class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        (activity as? MainActivity)?.getBottomNavColor()?.let { color ->
+            binding.audioPlayerContainer.setBackgroundColor(color)
+        }
 
         initializeTransitionLayout()
 
@@ -167,11 +173,23 @@ class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
             )
         }
 
+        childFragmentManager.setFragmentResultListener(
+            ChaptersBottomSheet.SEEK_TO_POSITION_REQUEST_KEY,
+            viewLifecycleOwner
+        ) { _, bundle ->
+            playerService?.player?.seekTo(bundle.getLong(IntentData.currentPosition))
+        }
+
         binding.openChapters.setOnClickListener {
             val playerService = playerService ?: return@setOnClickListener
-            viewModel.chaptersLiveData.value = playerService.streams?.chapters.orEmpty()
+            chaptersModel.chaptersLiveData.value = playerService.streams?.chapters.orEmpty()
 
             ChaptersBottomSheet()
+                .apply {
+                    arguments = bundleOf(
+                        IntentData.duration to playerService.player?.duration?.div(1000)
+                    )
+                }
                 .show(childFragmentManager)
         }
 
@@ -205,6 +223,8 @@ class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
         }
 
         if (!PlayerHelper.playAutomatically) updatePlayPauseButton()
+
+        updateChapterIndex()
     }
 
     private fun killFragment() {
@@ -220,9 +240,6 @@ class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
         mainActivity.binding.container.isVisible = true
         val mainMotionLayout = mainActivity.binding.mainMotionLayout
         mainMotionLayout.progress = 0F
-
-        val surfaceColor = SurfaceColors.getColorForElevation(requireContext(), 3f)
-        binding.audioPlayerContainer.setBackgroundColor(surfaceColor)
 
         binding.playerMotionLayout.addTransitionListener(object : TransitionAdapter() {
             override fun onTransitionChange(
@@ -434,5 +451,15 @@ class AudioPlayerFragment : Fragment(), AudioPlayerOptions {
         audioHelper.setVolumeWithScale(bar.progress, bar.max)
 
         binding.volumeTextView.text = "${bar.progress.normalize(0, bar.max, 0, 100)}"
+    }
+
+    private fun updateChapterIndex() {
+        if (_binding == null) return
+        handler.postDelayed(this::updateChapterIndex, 100)
+
+        val player = playerService?.player ?: return
+
+        val currentIndex = PlayerHelper.getCurrentChapterIndex(player.currentPosition, chaptersModel.chapters)
+        chaptersModel.currentChapterIndex.updateIfChanged(currentIndex ?: return)
     }
 }

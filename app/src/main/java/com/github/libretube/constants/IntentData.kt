@@ -8,6 +8,7 @@ object IntentData {
     const val videoIds = "videoIds"
     const val channelId = "channelId"
     const val channelName = "channelName"
+    const val channelAvatar = "channelAvatar"
     const val playlistId = "playlistId"
     const val timeStamp = "timeStamp"
     const val playlistType = "playlistType"
@@ -43,4 +44,7 @@ object IntentData {
     const val audioLanguage = "audioLanguage"
     const val captionLanguage = "captionLanguage"
     const val wasIntentStopped = "wasIntentStopped"
+    const val tabData = "tabData"
+    const val videoList = "videoList"
+    const val nextPage = "nextPage"
 }

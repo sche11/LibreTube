@@ -10,7 +10,6 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.github.libretube.R
 import com.github.libretube.api.JsonHelper
 import com.github.libretube.api.RetrofitInstance
-import com.github.libretube.api.obj.ChapterSegment
 import com.github.libretube.api.obj.Message
 import com.github.libretube.api.obj.Segment
 import com.github.libretube.api.obj.Streams
@@ -18,11 +17,11 @@ import com.github.libretube.api.obj.Subtitle
 import com.github.libretube.helpers.PlayerHelper
 import com.github.libretube.util.NowPlayingNotification
 import com.github.libretube.util.deArrow
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import retrofit2.HttpException
+import java.io.IOException
 
 @UnstableApi
 class PlayerViewModel : ViewModel() {
@@ -48,9 +47,7 @@ class PlayerViewModel : ViewModel() {
 
     var maxSheetHeightPx = 0
 
-    val chaptersLiveData = MutableLiveData<List<ChapterSegment>>()
-
-    val chapters get() = chaptersLiveData.value.orEmpty()
+    var sponsorBlockEnabled = PlayerHelper.sponsorBlockEnabled
 
     /**
      * @return pair of the stream info and the error message if the request was not successful

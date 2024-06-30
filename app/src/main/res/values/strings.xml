@@ -506,6 +506,8 @@
     <string name="uptime">%.2f%% uptime</string>
     <string name="change">Change</string>
     <string name="gestures">Gestures</string>
+    <string name="external_download_provider">External download provider</string>
+    <string name="external_download_provider_summary">Enter the package name of the app you want to use for downloading videos. Leave blank to use LibreTube\'s inbuilt downloader.</string>
 
     <!-- Notification channel strings -->
     <string name="download_channel_name">Download Service</string>
@@ -551,4 +553,5 @@
     <string name="also_clear_watch_positions">Also clear watch positions</string>
     <string name="import_temp_playlist">Import temporary playlist?</string>
     <string name="import_temp_playlist_summary">Do you want to create a new playlist named \'%1$s\'? The playlist will contain %2$d videos.</string>
+
 </resources>

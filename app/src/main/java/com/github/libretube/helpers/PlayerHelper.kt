@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.util.Base64
-import android.util.Log
 import android.view.accessibility.CaptioningManager
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -46,7 +45,6 @@ import com.github.libretube.extensions.seekBy
 import com.github.libretube.extensions.togglePlayPauseState
 import com.github.libretube.extensions.updateParameters
 import com.github.libretube.obj.VideoStats
-import com.github.libretube.util.PlayingQueue
 import com.github.libretube.util.TextUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -358,18 +356,9 @@ object PlayerHelper {
             true
         )
 
-    fun shouldPlayNextVideo(isPlaylist: Boolean = false): Boolean {
-        // if there is no next video, it obviously should not be played
-        if (!PlayingQueue.hasNext()) {
-            return false
-        }
-
-        return autoPlayEnabled || (
-                isPlaylist && PreferenceHelper.getBoolean(
-                    PreferenceKeys.AUTOPLAY_PLAYLISTS,
-                    false
-                )
-                )
+    fun isAutoPlayEnabled(isPlaylist: Boolean = false): Boolean {
+        return autoPlayEnabled || (isPlaylist && PreferenceHelper
+            .getBoolean(PreferenceKeys.AUTOPLAY_PLAYLISTS, false))
     }
 
     private val handleAudioFocus
@@ -838,6 +827,9 @@ object PlayerHelper {
         }
     }
 
+    /**
+     * Handle basic [PlayerEvent]'s that can be handled by the player itself without context
+     */
     fun handlePlayerAction(player: Player, playerEvent: PlayerEvent): Boolean {
         return when (playerEvent) {
             PlayerEvent.PlayPause -> {

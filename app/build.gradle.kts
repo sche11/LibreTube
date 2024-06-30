@@ -15,8 +15,8 @@ android {
         applicationId = "com.github.libretube"
         minSdk = 21
         targetSdk = 34
-        versionCode = 51
-        versionName = "0.23.0"
+        versionCode = 53
+        versionName = "0.23.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resValue("string", "app_name", "LibreTube")
 
@@ -143,4 +143,7 @@ dependencies {
 
     /* AndroidX Paging */
     implementation(libs.androidx.paging)
+
+    /* Testing */
+    testImplementation(libs.testng)
 }

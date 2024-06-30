@@ -45,9 +45,11 @@ import com.github.libretube.ui.sheets.ChannelGroupsSheet
 import com.github.libretube.ui.sheets.FilterSortBottomSheet
 import com.github.libretube.ui.sheets.FilterSortBottomSheet.Companion.FILTER_SORT_REQUEST_KEY
 import com.github.libretube.util.PlayingQueue
+import com.github.libretube.util.deArrow
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SubscriptionsFragment : DynamicLayoutManagerFragment() {
     private var _binding: FragmentSubscriptionsBinding? = null
@@ -56,11 +58,16 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
     private val viewModel: SubscriptionsViewModel by activityViewModels()
     private val playerModel: PlayerViewModel by activityViewModels()
     private val channelGroupsModel: EditChannelGroupsModel by activityViewModels()
-    private var selectedFilterGroup = 0
+    private var selectedFilterGroup
+        set(value) = PreferenceHelper.putInt(PreferenceKeys.SELECTED_CHANNEL_GROUP, value)
+        get() = PreferenceHelper.getInt(PreferenceKeys.SELECTED_CHANNEL_GROUP, 0)
+
     private var isCurrentTabSubChannels = false
     private var isAppBarFullyExpanded = true
 
-    var feedAdapter: VideosAdapter? = null
+    private var feedAdapter: VideosAdapter? = null
+    private val sortedFeed: MutableList<StreamItem> = mutableListOf()
+
     private var channelsAdapter: SubscriptionChannelAdapter? = null
     private var selectedSortOrder = PreferenceHelper.getInt(PreferenceKeys.FEED_SORT_ORDER, 0)
         set(value) {
@@ -153,13 +160,7 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
         }
 
         binding.subFeed.addOnBottomReachedListener {
-            val binding = _binding ?: return@addOnBottomReachedListener
-
-            if (viewModel.videoFeed.value != null && !isCurrentTabSubChannels) {
-                binding.subRefresh.isRefreshing = true
-                feedAdapter?.updateItems()
-                binding.subRefresh.isRefreshing = false
-            }
+            loadNextFeedItems()
         }
 
         // add some extra margin to the subscribed channels while the mini player is visible
@@ -205,21 +206,42 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
         }
     }
 
+    private fun loadNextFeedItems() {
+        val binding = _binding ?: return
+
+        val feedAdapter = feedAdapter ?: return
+
+        val hasMore = sortedFeed.size > feedAdapter.itemCount
+        if (viewModel.videoFeed.value != null && !isCurrentTabSubChannels && !binding.subRefresh.isRefreshing && hasMore) {
+            binding.subRefresh.isRefreshing = true
+
+            lifecycleScope.launch {
+                val toIndex = minOf(feedAdapter.itemCount + 10, sortedFeed.size)
+
+                var streamItemsToInsert = sortedFeed
+                    .subList(feedAdapter.itemCount, toIndex)
+                    .toList()
+
+                withContext(Dispatchers.IO) {
+                    runCatching { streamItemsToInsert = streamItemsToInsert.deArrow() }
+                }
+
+                feedAdapter.insertItems(streamItemsToInsert)
+                binding.subRefresh.isRefreshing = false
+            }
+        }
+    }
+
     private fun setupSortAndFilter() {
         binding.filterSort.setOnClickListener {
-            val activityCompat = context as AppCompatActivity
-            val fragManager = activityCompat
-                .supportFragmentManager
-                .apply {
-                    setFragmentResultListener(
-                        FILTER_SORT_REQUEST_KEY,
-                        activityCompat
-                    ) { _, resultBundle ->
-                        selectedSortOrder = resultBundle.getInt(IntentData.sortOptions)
-                        hideWatched = resultBundle.getBoolean(IntentData.hideWatched)
-                        showFeed()
-                    }
-                }
+            childFragmentManager.setFragmentResultListener(
+                FILTER_SORT_REQUEST_KEY,
+                viewLifecycleOwner
+            ) { _, resultBundle ->
+                selectedSortOrder = resultBundle.getInt(IntentData.sortOptions)
+                hideWatched = resultBundle.getBoolean(IntentData.hideWatched)
+                showFeed()
+            }
 
             FilterSortBottomSheet()
                 .apply {
@@ -228,7 +250,7 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
                         IntentData.hideWatched to hideWatched
                     )
                 }
-                .show(fragManager)
+                .show(childFragmentManager)
         }
     }
 
@@ -266,7 +288,7 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
     private fun initChannelGroups() {
         val binding = _binding ?: return
 
-        binding.chipAll.isChecked = true
+        binding.chipAll.isChecked = selectedFilterGroup == 0
         binding.chipAll.setOnLongClickListener {
             playByGroup(0)
             true
@@ -332,9 +354,11 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
                 DatabaseHelper.filterByStatusAndWatchPosition(it, hideWatched)
             }
 
-        val sortedFeed = feed
+        val sorted = feed
             .sortedBySelectedOrder()
             .toMutableList()
+        sortedFeed.clear()
+        sortedFeed.addAll(sorted)
 
         // add an "all caught up item"
         if (selectedSortOrder == 0) {
@@ -355,10 +379,9 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
         binding.subFeed.isGone = notLoaded
         binding.emptyFeed.isVisible = notLoaded
 
-        feedAdapter = VideosAdapter(
-            sortedFeed.toMutableList(),
-            showAllAtOnce = false
-        )
+        feedAdapter = VideosAdapter(mutableListOf())
+        loadNextFeedItems()
+
         binding.subFeed.adapter = feedAdapter
         binding.toggleSubs.text = getString(R.string.subscriptions)
 
@@ -399,6 +422,11 @@ class SubscriptionsFragment : DynamicLayoutManagerFragment() {
 
         val subCount = subscriptions.size.toLong().formatShort()
         binding.toggleSubs.text = "${getString(R.string.subscriptions)} ($subCount)"
+    }
+
+    fun removeItem(videoId: String) {
+        feedAdapter?.removeItemById(videoId)
+        sortedFeed.removeAll { it.url?.toID() != videoId }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
